@@ -51,7 +51,7 @@ class Correctness(unittest.TestCase):
     def test_queue_survives_restart_and_provider_failure(self):
         self.prefs.update({'enabled':True});nid=self.notify.emit('join','A','sample',player='A')
         restarted=Notifier(self.prefs,self.insights,threading.Event())
-        with patch('settings.deliver',side_effect=HTTPError('https://provider',429,'limit',{'Retry-After':'120'},None)):
+        with patch('settings.deliver',side_effect=HTTPError('https://provider',429,'limit',{'Retry-After':'120'},io.BytesIO(b''))):
             self.assertTrue(restarted.process_one())
         with self.store.connect() as db:
             row=db.execute('SELECT * FROM delivery_queue').fetchone();self.assertEqual(row['status'],'retry');self.assertEqual(row['attempts'],1)
