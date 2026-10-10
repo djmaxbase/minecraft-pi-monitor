@@ -3,7 +3,7 @@
 - Supervisor schrijft update-uitkomst atomisch vóór het vrijgeven van de pending-status.
 - Gezondheidsmarker moet overeenkomen met de geïnstalleerde versie.
 - Bewaart maximaal 100 supervisor-update-uitkomsten lokaal.
-- Lost de in GitHub CI gevonden race op; lokaal en op CI opnieuw testen.
+- Lost de in GitHub CI gevonden race op; lokaal getest en CI geslaagd op Python 3.9 en 3.13.
 
 # 2.1.0
 

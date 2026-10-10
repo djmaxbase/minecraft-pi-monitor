@@ -39,3 +39,7 @@ Als MONITOR_PASSWORD in monitor.env staat, wijzig die override lokaal. Start de 
 ## Verwijderen
 
 Stop en disable `uitgeteld-monitor`, verwijder uitsluitend de bijbehorende unit, voer daemon-reload uit en verwijder desgewenst de programmabestanden. Verwijder `data/` en configuratie alleen met een afzonderlijke bewuste handeling. Geen uninstall mag automatisch historie wissen.
+
+## GitHub Actions signing activeren
+
+De initiële releases zijn lokaal ondertekend. De workflow stopt wanneer `RELEASE_SIGNING_KEY` ontbreekt; hij publiceert nooit stilzwijgend ongetekende assets. Repository-eigenaren kunnen via Settings → Secrets and variables → Actions een repositorysecret met die exacte naam toevoegen. De waarde is de volledige PEM-inhoud van de bestaande privésleutel die bij `update_pubkey.pem` hoort. Maak niet zomaar een andere sleutel aan: die zou niet door bestaande installaties worden vertrouwd. Bewaar de sleutel offline en beperk wie release-workflows kan wijzigen.
