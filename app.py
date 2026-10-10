@@ -191,6 +191,10 @@ class Store:
             db.execute('DELETE FROM events WHERE ts < ?', (cutoff,))
             db.execute('DELETE FROM sessions WHERE end IS NOT NULL AND end < ?', (cutoff,))
             db.execute('DELETE FROM players WHERE last_seen < ?', (cutoff,))
+            for row in db.execute('SELECT id,end,last_seen FROM sessions WHERE start<? AND (end IS NULL OR end>=?)',(cutoff,cutoff)).fetchall():
+                end=row['end'] or row['last_seen']
+                seconds=max(0,(datetime.fromisoformat(end)-datetime.fromisoformat(cutoff)).total_seconds()) if end else 0
+                db.execute('UPDATE sessions SET start=?,seconds=CASE WHEN end IS NULL THEN NULL ELSE ? END,start_kind=? WHERE id=?',(cutoff,seconds,'retention_boundary',row['id']))
 
     def dashboard(self, hours):
         cutoff = datetime.fromtimestamp(time.time()-hours*3600, timezone.utc).isoformat(timespec='seconds')
@@ -595,6 +599,9 @@ def make_handler(store, cfg, services=None):
                 return self.send(400,b'Invalid hours', 'text/plain')
             if parsed.path in ('/export/checks.csv','/export/events.csv','/export/players.csv','/export/sessions.csv','/export/pi.csv','/export/chat.csv','/export/raw.jsonl'):
                 return self.export_rows(parsed.path,hours)
+            if parsed.path=='/api/health':
+                with store.connect() as db:db.execute('SELECT 1').fetchone()
+                return self.json_response(dict(ok=True,version=VERSION,setup_complete=setup_is_complete(Path(store.path).parent)))
             if parsed.path=='/api/history':
                 table=params.get('table',['events'])[0]
                 if table not in ('events','sessions','players','notices'):return self.json_response({'error':'Onbekende tabel'},400)
@@ -763,7 +770,7 @@ def main():
         Preferences(Path(store.path).parent)
         if not setup_is_complete(Path(store.path).parent):
             token=setup_token(Path(store.path).parent, create=True)
-            print('Eerste installatie. Setup-sleutel:', token)
+            print('Eerste installatie: lees de lokale sleutel uit data/setup-token.txt.')
             print('Bewaar data/setup-token.txt; willekeurige bezoekers kunnen zonder deze sleutel geen beheerder maken.')
         print('Instellingen en login zijn voorbereid.');return
     collector=Collector(cfg,store)
