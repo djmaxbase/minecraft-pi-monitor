@@ -1,0 +1,16 @@
+data/
+.env
+.env.*
+monitor.env
+config.json
+*.sqlite*
+*.db*
+*.log
+*.zip
+*.sig
+__pycache__/
+*.pyc
+.venv/
+*private*.pem
+*signing*.pem
+PROGRESS.md
