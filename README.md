@@ -69,7 +69,7 @@ python3 make_release.py
 
 Geen derde-partij Python-code, JS-bibliotheken, fonts of grafische assets gebundeld. Eigen code: MIT. Python, OpenSSL en dnsutils worden door het OS geleverd onder hun eigen licenties. Een release bevat uitsluitend expliciet toegestane bronbestanden en documentatie, nooit runtimegegevens.
 
-## Bekende grenzen van 2.1.0
+## Bekende grenzen van 2.1.1
 
 Geen gegarandeerde chatvolledigheid, exacte speeltijd, geverifieerde naamhistorie of gelijktijdige multi-servercollectie. Geen hardwareclaim voor armv7/x86 of andere Python-versies zonder CI/hardwarebewijs. De systemd-installatie vereist sudo. Browsercontrole en screenshots staan afzonderlijk in het verificatieverslag; geen mockups als werkende UI voorstellen. Zie CHANGELOG.md voor deze upgrade.
 

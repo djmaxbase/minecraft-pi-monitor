@@ -1,3 +1,10 @@
+# 2.1.1
+
+- Supervisor schrijft update-uitkomst atomisch vóór het vrijgeven van de pending-status.
+- Gezondheidsmarker moet overeenkomen met de geïnstalleerde versie.
+- Bewaart maximaal 100 supervisor-update-uitkomsten lokaal.
+- Lost de in GitHub CI gevonden race op; lokaal en op CI opnieuw testen.
+
 # 2.1.0
 
 - Herstelt verse installatie en beschermde setup-wizard; bestaande credentials blijven behouden.

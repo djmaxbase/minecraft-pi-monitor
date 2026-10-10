@@ -62,8 +62,8 @@ def rollback(root):
             target.parent.mkdir(parents=True,exist_ok=True)
             shutil.copy2(backup/name,target)
         elif target.exists():target.unlink()
+    atomic_json(root/'data/update-result.json',{'state':'rolled_back','message':'Vorige code hersteld; nieuwe versie startte niet correct.'})
     pending.unlink()
-    (root/'data/update-result.json').write_text(json.dumps({'state':'rolled_back','message':'Vorige code hersteld; nieuwe versie startte niet correct.'}))
 
 
 def install(root,blob):

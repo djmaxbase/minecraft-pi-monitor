@@ -53,7 +53,7 @@ class Lifecycle(unittest.TestCase):
             root=Path(tmp);(root/'data').mkdir()
             launcher=(Path(app.ROOT)/'launcher.py').read_text().replace('>=15','>=0.1').replace('>60','>2')
             (root/'launcher.py').write_text(launcher)
-            good=b"import os,signal,time,json\nfrom pathlib import Path\nPath('data/pid').write_text(str(os.getpid()))\nPath('data/app-ready.json').write_text('{}')\nsignal.signal(signal.SIGUSR1,lambda *a:exit(42))\nwhile True:time.sleep(.05)\n"
+            good=b"import os,signal,time,json\nfrom pathlib import Path\nPath('data/pid').write_text(str(os.getpid()))\nPath('data/app-ready.json').write_text(json.dumps({'version':Path('VERSION').read_text().strip()}))\nsignal.signal(signal.SIGUSR1,lambda *a:exit(42))\nwhile True:time.sleep(.05)\n"
             (root/'app.py').write_bytes(good);(root/'VERSION').write_text('2.0.0')
             def package(version,code=good):
                 src=zipfile.ZipFile(io.BytesIO(release()));files={i.filename:src.read(i) for i in src.infolist()};src.close()
