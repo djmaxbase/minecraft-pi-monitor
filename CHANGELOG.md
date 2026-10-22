@@ -1,3 +1,7 @@
+# 2.2.3 — Compatibility bridge
+
+This signed transitional update installs an updater compatible with future BLACKSITE radar files while keeping the existing v2.1.1 web server running. Install v2.2.3 first, then install the next radar release. No radar UI in this bridge version.
+
 # 2.2.0 — BLACKSITE Web Radar
 
 - Optional token-authenticated CC:Tweaked radar ingest and live web dashboard at /radar.
