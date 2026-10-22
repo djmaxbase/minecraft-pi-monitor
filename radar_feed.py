@@ -42,7 +42,13 @@ class RadarFeed:
                 "entityType": str(track.get("entityType", ""))[:100],
                 "position": xyz,
             })
-        record = {"tracks": cleaned, "received_at": int(time.time()), "source": "BLACKSITE CC:Tweaked"}
+        origin = payload.get("origin")
+        if not isinstance(origin, dict): return False, "Radar origin ontbreekt; update blacksite_web.lua en stel coordinaten in"
+        try:
+            origin = {axis: float(origin[axis]) for axis in ("x", "y", "z")}
+            if any(not -30000000 <= v <= 30000000 for v in origin.values()): raise ValueError()
+        except (KeyError, ValueError, TypeError): return False, "Ongeldige radar origin"
+        record = {"origin": origin, "tracks": cleaned, "received_at": int(time.time()), "source": "BLACKSITE CC:Tweaked"}
         with self.lock:
             tmp = self.path.with_suffix(".tmp")
             tmp.write_text(json.dumps(record))
