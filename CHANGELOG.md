@@ -1,3 +1,10 @@
+# 2.2.0 — BLACKSITE Web Radar
+
+- Optional token-authenticated CC:Tweaked radar ingest and live web dashboard at /radar.
+- Latest snapshots stored on Pi; existing monitoring and notifications preserved.
+- Requires BLACKSITE_RADAR_TOKEN and Minecraft HTTP access to the Pi HTTPS endpoint.
+- New radar files included in signed in-app updates.
+
 # 2.1.1
 
 - Supervisor schrijft update-uitkomst atomisch vóór het vrijgeven van de pending-status.
