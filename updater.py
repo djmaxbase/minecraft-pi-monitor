@@ -15,9 +15,9 @@ from pathlib import Path, PurePosixPath
 
 ALLOWED={'app.py','protocol.py','telemetry.py','insights.py','settings.py','updater.py','chatlogs.py',
          'observe.py','schema.py','github_update.py','release_channel.json','update_pubkey.pem',
-         'web/setup.js','web/index.html','web/style.css','web/app.js','web/extended.js','web/extended.css','VERSION'}
+         'radar_feed.py','web/radar.html','web/radar.js','web/radar.css','web/setup.js','web/index.html','web/style.css','web/app.js','web/extended.js','web/extended.css','VERSION'}
 REQUIRED={'app.py','protocol.py','telemetry.py','insights.py','settings.py','updater.py','chatlogs.py',
-          'observe.py','schema.py','github_update.py','web/setup.js','web/index.html','web/style.css','web/app.js','web/extended.js','web/extended.css','VERSION'}
+          'observe.py','schema.py','github_update.py','radar_feed.py','web/radar.html','web/radar.js','web/radar.css','web/setup.js','web/index.html','web/style.css','web/app.js','web/extended.js','web/extended.css','VERSION'}
 LOCK=threading.Lock()
 
 

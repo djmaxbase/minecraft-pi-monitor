@@ -1,12 +1,12 @@
 -- BLACKSITE -> Uitgeteld-Pi (requires HTTP API enabled on server)
 -- Configure URL and token on first launch, saved locally.
 local path="blacksite_web_config"
-local function read()
+local function readConfig()
  if not fs.exists(path) then return {} end
  local f=fs.open(path,"r");local v=textutils.unserialize(f.readAll());f.close()
  return type(v)=="table" and v or {}
 end
-local cfg=read()
+local cfg=readConfig()
 if not cfg.url then write("HTTPS API URL (e.g. https://domain/api/radar/ingest): ");cfg.url=read() end
 if not cfg.token then write("BLACKSITE_RADAR_TOKEN: ");cfg.token=read() end
 local f=fs.open(path,"w");f.write(textutils.serialize(cfg));f.close()
