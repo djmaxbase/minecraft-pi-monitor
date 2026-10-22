@@ -31,5 +31,5 @@ while true do
    if okPost and res then print("RADAR SYNC "..res.getResponseCode().." / "..#tracks);res.close() else print("Radar sync failed. Check HTTP access/URL.") end
   end
  else print("Radar peripheral unavailable") end
- sleep(5)
+ sleep(1)
 end
