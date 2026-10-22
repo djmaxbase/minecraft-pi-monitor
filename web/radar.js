@@ -1,26 +1,32 @@
-const canvas=document.getElementById('screen'),ctx=canvas.getContext('2d');
-const list=document.getElementById('contacts'),status=document.getElementById('status'),count=document.getElementById('count');
-let tracks=[],chosen=null,updated=0;
-function draw(){
- const w=canvas.width=canvas.clientWidth*devicePixelRatio,h=canvas.height=canvas.clientHeight*devicePixelRatio;
- ctx.fillStyle='#061015';ctx.fillRect(0,0,w,h);
- const cx=w/2,cy=h/2,r=Math.min(w,h)*.41;
- ctx.strokeStyle='#164a42';ctx.lineWidth=1;
- for(let i=1;i<=4;i++){ctx.beginPath();ctx.arc(cx,cy,r*i/4,0,Math.PI*2);ctx.stroke();}
- for(let i=0;i<12;i++){let a=i*Math.PI/6;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r);ctx.stroke();}
- ctx.fillStyle='#00dfae';ctx.font=`${12*devicePixelRatio}px monospace`;ctx.fillText('N',cx,cy-r-8);
- const base=tracks.find(t=>t.category==='BASE')?.position||tracks[0]?.position||{x:0,z:0};
- for(const t of tracks){const p=t.position||{},x=cx+(p.x-base.x)/256*r,z=cy+(p.z-base.z)/256*r;
- if(Math.hypot(x-cx,z-cy)>r)continue;
- ctx.fillStyle=t.category==='PLAYER'?'#18e9c0':t.category==='HOSTILE'?'#ff6969':'#e4c879';
- ctx.beginPath();ctx.arc(x,z,(t.id===chosen?6:3)*devicePixelRatio,0,Math.PI*2);ctx.fill();
- if(t.id===chosen){ctx.strokeStyle='#fff';ctx.strokeRect(x-9,z-9,18,18);}
- }requestAnimationFrame(draw);
-}
-async function refresh(){
- try{const response=await fetch('/api/radar/live',{cache:'no-store'});if(!response.ok)throw Error(response.status);
- const data=await response.json();tracks=data.tracks||[];updated=data.received_at||0;
- status.textContent=data.stale?'OFFLINE / STALE':'LIVE';count.textContent=tracks.length+' CONTACTS';
- list.replaceChildren();for(const t of tracks){const row=document.createElement('button');row.className='track';row.textContent=`${t.category||'OTHER'} · ${t.name||t.entityType||t.id||'Unknown'} · ${Math.round(t.position.x)}, ${Math.round(t.position.y)}, ${Math.round(t.position.z)}`;row.onclick=()=>{chosen=t.id;document.getElementById('selected').textContent=JSON.stringify(t,null,2)};list.append(row);}
- }catch(e){status.textContent='NO CONNECTION'}
-}draw();refresh();setInterval(refresh,3000);
+const canvas=document.getElementById('screen'),ctx=canvas.getContext('2d'),list=document.getElementById('contacts');
+const el=id=>document.getElementById(id);let tracks=[],chosen=null,received=0,stale=true,filter='ALL',query='',zoom=1,hitPoints=[],sweep=0,requestBusy=false;
+const categories={PLAYER:'#41e8bc',HOSTILE:'#fb6977',BASE:'#8eb5ff',OTHER:'#f2c77a'};
+const typeOf=t=>String(t.category||'OTHER').toUpperCase();
+const pos=t=>t.position||{};
+const num=n=>Number.isFinite(Number(n))?Math.round(Number(n)):'—';
+const label=t=>String(t.name||t.entityType||t.id||'Unknown contact');
+const key=t=>String(t.id??[t.category,label(t),pos(t).x,pos(t).z].join(':'));
+const color=t=>categories[typeOf(t)]||categories.OTHER;
+const origin=()=>pos(tracks.find(t=>typeOf(t)==='BASE')||tracks[0]||{position:{x:0,z:0}});
+function clock(){el('clock').textContent=new Date().toLocaleTimeString('en-GB',{hour12:false});if(received){let age=Math.max(0,Date.now()/1000-received);el('signalMetric').textContent=age<60?Math.floor(age)+'s':Math.floor(age/60)+'m';el('signalHint').textContent=stale?'Signal delayed':'Since last transmission';}}
+function metrics(){el('totalMetric').textContent=tracks.length;el('playerMetric').textContent=tracks.filter(t=>typeOf(t)==='PLAYER').length;el('hostileMetric').textContent=tracks.filter(t=>typeOf(t)==='HOSTILE').length;el('count').textContent=tracks.length;el('originLabel').textContent='X '+num(origin().x)+' / Z '+num(origin().z);}
+function details(){const t=tracks.find(t=>key(t)===chosen),target=el('selected');target.replaceChildren();if(!t){const div=document.createElement('div');div.className='empty detail-empty';div.textContent='Select a contact on the radar or from the list to inspect its details.';target.append(div);return;}
+const title=document.createElement('div');title.className='detail-name';title.textContent=label(t);target.append(title);const type=document.createElement('div');type.className='detail-type';type.textContent=typeOf(t)+' / TRACK IDENTIFIED';target.append(type);
+const grid=document.createElement('div');grid.className='detail-grid';for(const [name,value] of [['X',num(pos(t).x)],['Y',num(pos(t).y)],['Z',num(pos(t).z)]]){const cell=document.createElement('div');cell.className='detail-cell';const small=document.createElement('small');small.textContent=name+' COORD';const strong=document.createElement('strong');strong.textContent=value;cell.append(small,strong);grid.append(cell);}target.append(grid);const id=document.createElement('div');id.className='detail-id';id.textContent='TRACK ID: '+String(t.id??'N/A');target.append(id);}
+function renderList(){list.replaceChildren();let visible=tracks.filter(t=>(filter==='ALL'||(filter==='OTHER'? !['PLAYER','HOSTILE'].includes(typeOf(t)):typeOf(t)===filter))&&(label(t)+' '+typeOf(t)).toLowerCase().includes(query));if(!visible.length){const empty=document.createElement('div');empty.className='empty';empty.textContent=tracks.length?'No matching contacts':'No contacts received yet';list.append(empty);return;}
+for(const t of visible){const row=document.createElement('button');row.className='contact '+(typeOf(t)==='HOSTILE'?'hostile':typeOf(t)==='PLAYER'?'player':'neutral')+(key(t)===chosen?' selected':'');const badge=document.createElement('span');badge.className='contact-icon';badge.textContent=typeOf(t)==='PLAYER'?'♟':typeOf(t)==='HOSTILE'?'⚠':typeOf(t)==='BASE'?'⌂':'◆';const info=document.createElement('span');info.className='contact-info';const name=document.createElement('div');name.className='contact-name';name.textContent=label(t);const coords=document.createElement('div');coords.className='contact-coords';coords.textContent='X '+num(pos(t).x)+'  ·  Y '+num(pos(t).y)+'  ·  Z '+num(pos(t).z);info.append(name,coords);const category=document.createElement('span');category.className='contact-category';category.textContent=typeOf(t);row.append(badge,info,category);row.onclick=()=>select(key(t));list.append(row);}}
+function select(id){chosen=id;renderList();details();}
+function line(x1,y1,x2,y2,color,width=1){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();}
+function frame(){const ratio=Math.min(window.devicePixelRatio||1,2),w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h){requestAnimationFrame(frame);return;}if(canvas.width!==Math.round(w*ratio)||canvas.height!==Math.round(h*ratio)){canvas.width=Math.round(w*ratio);canvas.height=Math.round(h*ratio);}ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,w,h);const cx=w/2,cy=h/2,r=Math.max(30,Math.min(w,h)*.405),base=origin(),range=256/zoom;hitPoints=[];
+ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.clip();const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,r);glow.addColorStop(0,'#15413c');glow.addColorStop(1,'#091b25');ctx.fillStyle=glow;ctx.fillRect(cx-r,cy-r,r*2,r*2);
+for(let i=1;i<=5;i++){ctx.beginPath();ctx.arc(cx,cy,r*i/5,0,Math.PI*2);ctx.strokeStyle=i===5?'#387a70':'#27544f';ctx.lineWidth=i===5?1.5:1;ctx.stroke();}
+for(let i=0;i<12;i++){const a=i*Math.PI/6;line(cx,cy,cx+Math.cos(a)*r,cy+Math.sin(a)*r,'#204640');}
+const angle=(Date.now()/1000*.6)%(Math.PI*2);const grad=ctx.createConicGradient(angle,cx,cy);grad.addColorStop(0,'#41e8bc00');grad.addColorStop(.83,'#41e8bc00');grad.addColorStop(1,'#41e8bc28');ctx.fillStyle=grad;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();line(cx,cy,cx+Math.cos(angle)*r,cy+Math.sin(angle)*r,'#40e5b977',1.5);
+for(const t of tracks){const p=pos(t),dx=Number(p.x)-Number(base.x||0),dz=Number(p.z)-Number(base.z||0);if(!Number.isFinite(dx)||!Number.isFinite(dz))continue;const x=cx+dx/range*r,y=cy+dz/range*r;if(Math.hypot(x-cx,y-cy)>r)continue;const selected=key(t)===chosen,c=color(t),size=selected?6:4;ctx.shadowBlur=selected?18:9;ctx.shadowColor=c;ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,size,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;if(selected){ctx.strokeStyle=c;ctx.lineWidth=1.5;ctx.strokeRect(x-11,y-11,22,22);ctx.fillStyle='#d8f7ef';ctx.font='11px DM Sans, sans-serif';ctx.fillText(label(t).slice(0,24),x+15,y-12);}hitPoints.push({x,y,id:key(t)});}ctx.restore();
+ctx.fillStyle='#75aaa0';ctx.font='600 11px Space Grotesk, sans-serif';ctx.textAlign='center';ctx.fillText('N',cx,cy-r-14);ctx.fillText('S',cx,cy+r+20);ctx.fillText('W',cx-r-17,cy+4);ctx.fillText('E',cx+r+17,cy+4);ctx.textAlign='left';ctx.fillStyle='#6d998f';ctx.font='10px Space Grotesk, sans-serif';for(let i=1;i<=4;i++)ctx.fillText(String(Math.round(range*i/5))+'m',cx+6,cy-r*i/5+12);
+requestAnimationFrame(frame);}
+canvas.addEventListener('click',e=>{const rect=canvas.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top;let nearest=null,d=16;for(const p of hitPoints){const dist=Math.hypot(p.x-x,p.y-y);if(dist<d){d=dist;nearest=p;}}if(nearest)select(nearest.id);});
+function setZoom(value){zoom=Math.max(.5,Math.min(4,value));el('zoomText').textContent=zoom.toFixed(1)+'×';el('rangeLabel').textContent='RANGE ±'+Math.round(256/zoom);}
+el('zoomIn').onclick=()=>setZoom(zoom*1.5);el('zoomOut').onclick=()=>setZoom(zoom/1.5);el('search').oninput=e=>{query=e.target.value.toLowerCase();renderList();};document.querySelectorAll('.filter').forEach(btn=>btn.onclick=()=>{filter=btn.dataset.filter;document.querySelectorAll('.filter').forEach(b=>b.classList.toggle('active',b===btn));renderList();});
+async function refresh(){if(requestBusy)return;requestBusy=true;try{const res=await fetch('/api/radar/live',{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);const data=await res.json();tracks=Array.isArray(data.tracks)?data.tracks:[];received=Number(data.received_at)||0;stale=Boolean(data.stale);el('status').textContent=stale?'SIGNAL STALE':'SYSTEM ONLINE';el('status').parentElement.classList.toggle('offline',stale);el('footerStatus').textContent=stale?'Waiting for fresh radar telemetry':'Secure telemetry · Receiving live contacts';if(chosen&&!tracks.some(t=>key(t)===chosen))chosen=null;metrics();renderList();details();}catch(err){stale=true;el('status').textContent='DISCONNECTED';el('status').parentElement.classList.add('offline');el('footerStatus').textContent='Radar feed unavailable';}finally{requestBusy=false;}}
+clock();setInterval(clock,1000);requestAnimationFrame(frame);refresh();setInterval(refresh,3000);
