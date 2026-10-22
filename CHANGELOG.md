@@ -1,3 +1,7 @@
+# 2.2.4 — BLACKSITE Web Radar
+
+Adds BLACKSITE Radar to the web dashboard. Requires v2.2.3 compatibility bridge installed first on the Raspberry Pi, and a configured BLACKSITE_RADAR_TOKEN and CC:Tweaked HTTP bridge.
+
 # 2.2.3 — Compatibility bridge
 
 This signed transitional update installs an updater compatible with future BLACKSITE radar files while keeping the existing v2.1.1 web server running. Install v2.2.3 first, then install the next radar release. No radar UI in this bridge version.
