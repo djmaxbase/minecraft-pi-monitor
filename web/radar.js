@@ -9,7 +9,7 @@ function draw(){
  for(let i=1;i<=4;i++){ctx.beginPath();ctx.arc(cx,cy,r*i/4,0,Math.PI*2);ctx.stroke();}
  for(let i=0;i<12;i++){let a=i*Math.PI/6;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r);ctx.stroke();}
  ctx.fillStyle='#00dfae';ctx.font=`${12*devicePixelRatio}px monospace`;ctx.fillText('N',cx,cy-r-8);
- const base=tracks.find(t=>t.category==='BASE')?.position||{x:0,z:0};
+ const base=tracks.find(t=>t.category==='BASE')?.position||tracks[0]?.position||{x:0,z:0};
  for(const t of tracks){const p=t.position||{},x=cx+(p.x-base.x)/256*r,z=cy+(p.z-base.z)/256*r;
  if(Math.hypot(x-cx,z-cy)>r)continue;
  ctx.fillStyle=t.category==='PLAYER'?'#18e9c0':t.category==='HOSTILE'?'#ff6969':'#e4c879';
