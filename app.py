@@ -25,7 +25,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from radar_feed import RadarFeed
 from protocol import status, full_query, ping
 from telemetry import PiSampler
 from insights import Insights
@@ -396,21 +395,6 @@ def make_handler(store, cfg, services=None):
         def do_POST(self):
             if not services:return self.send(404,b'Not found','text/plain')
             route=urlparse(self.path).path
-            if route == '/api/radar/ingest':
-                try:
-                    size = int(self.headers.get('Content-Length', '0'))
-                    if not 0 < size <= 256 * 1024:
-                        return self.json_response({'error':'Invalid payload size'}, 413)
-                    self.connection.settimeout(10)
-                    payload = json.loads(self.rfile.read(size))
-                    header = self.headers.get('Authorization', '')
-                    key = header[7:] if header.startswith('Bearer ') else ''
-                    success, result = services['radar'].accept(key, payload)
-                    if not success:
-                        return self.json_response({'error':result}, 403)
-                    return self.json_response({'ok':True,'contacts':len(result['tracks'])})
-                except (ValueError, TypeError, OSError, json.JSONDecodeError):
-                    return self.json_response({'error':'Invalid radar request'}, 400)
             if route in ('/api/setup','/api/setup/test'):
                 return self.handle_setup(route)
             relay=route=='/api/chat/ingest' and self.headers.get('Authorization','').startswith('Bearer ')
@@ -685,8 +669,6 @@ def make_handler(store, cfg, services=None):
                         for row in db.execute(f'SELECT {",".join(cols)} FROM {table}'+where,(cutoff,) if timecol else ()):
                             writer.writerow(["'"+x if isinstance(x,str) and x.startswith(('=','+','-','@')) else x for x in row])
                     return self.send(200,output.getvalue().encode('utf-8-sig'),'text/csv; charset=utf-8')
-            if services and parsed.path == '/api/radar/live':
-                return self.json_response(services['radar'].current())
             if parsed.path=='/api/dashboard':
                 data=store.dashboard(hours)
                 data['config']={k:cfg[k] for k in ('host','port','query_port','interval','retention_days')}
@@ -705,7 +687,7 @@ def make_handler(store, cfg, services=None):
                         # Neutralize spreadsheet formula injection from server/player text.
                         writer.writerow(["'"+x if isinstance(x,str) and x.startswith(('=','+','-','@')) else x for x in row])
                     return self.send(200,output.getvalue().encode('utf-8-sig'),'text/csv; charset=utf-8')
-            files={'/radar':('radar.html','text/html; charset=utf-8'),'/radar.js':('radar.js','text/javascript; charset=utf-8'),'/radar.css':('radar.css','text/css; charset=utf-8'),'/setup.js':('setup.js','text/javascript; charset=utf-8'),'/':('index.html','text/html; charset=utf-8'), '/app.js':('app.js','text/javascript; charset=utf-8'), '/style.css':('style.css','text/css; charset=utf-8'), '/extended.js':('extended.js','text/javascript; charset=utf-8'), '/extended.css':('extended.css','text/css; charset=utf-8')}
+            files={'/setup.js':('setup.js','text/javascript; charset=utf-8'),'/':('index.html','text/html; charset=utf-8'), '/app.js':('app.js','text/javascript; charset=utf-8'), '/style.css':('style.css','text/css; charset=utf-8'), '/extended.js':('extended.js','text/javascript; charset=utf-8'), '/extended.css':('extended.css','text/css; charset=utf-8')}
             if parsed.path in files:
                 filename,mime=files[parsed.path]
                 return self.send(200,(ROOT/'web'/filename).read_bytes(),mime)
@@ -806,7 +788,7 @@ def main():
     cfg.update(interval=prefs.get()['monitor_interval'],retention_days=prefs.get()['server_retention_days'])
     for key in ('status_timeout','query_timeout','ping_timeout'):cfg[key]=prefs.get()[key]
     chat=ChatLog(store,notifier,prefs)
-    services=dict(prefs=prefs,insights=insights,notifier=notifier,chat=chat,radar=RadarFeed(Path(store.path).parent),csrf=secrets.token_urlsafe(32),collector=collector,config_path=args.config)
+    services=dict(prefs=prefs,insights=insights,notifier=notifier,chat=chat,csrf=secrets.token_urlsafe(32),collector=collector,config_path=args.config)
     def observe(current,previous):
         insights.observe(current,previous);notifier.server(current,previous)
     collector.observer=observe
