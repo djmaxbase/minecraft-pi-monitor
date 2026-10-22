@@ -9,6 +9,14 @@ end
 local cfg=readConfig()
 if not cfg.url then write("HTTPS API URL (e.g. https://domain/api/radar/ingest): ");cfg.url=read() end
 if not cfg.token then write("BLACKSITE_RADAR_TOKEN: ");cfg.token=read() end
+if type(cfg.origin)~="table" or tonumber(cfg.origin.x)==nil or tonumber(cfg.origin.z)==nil then
+ print("Radar world position required (F3 coordinates of radar block).")
+ write("Radar X: "); local x=tonumber(read())
+ write("Radar Y: "); local y=tonumber(read())
+ write("Radar Z: "); local z=tonumber(read())
+ if not x or not y or not z then error("Valid numeric radar coordinates required") end
+ cfg.origin={x=x,y=y,z=z}
+end
 local f=fs.open(path,"w");f.write(textutils.serialize(cfg));f.close()
 local function radar()
  for _,s in ipairs(peripheral.getNames()) do
@@ -27,7 +35,7 @@ while true do
      tracks[#tracks+1]={id=tostring(t.id or t.uuid or ""),name=t.playerName or t.username or t.name or "",category=t.category or "OTHER",entityType=t.entityType or "",position=t.position}
     end
    end
-   local okPost,res=pcall(http.post,cfg.url,textutils.serializeJSON({tracks=tracks}),{["Content-Type"]="application/json",["Authorization"]="Bearer "..cfg.token})
+   local okPost,res=pcall(http.post,cfg.url,textutils.serializeJSON({tracks=tracks,origin=cfg.origin}),{["Content-Type"]="application/json",["Authorization"]="Bearer "..cfg.token})
    if okPost and res then print("RADAR SYNC "..res.getResponseCode().." / "..#tracks);res.close() else print("Radar sync failed. Check HTTP access/URL.") end
   end
  else print("Radar peripheral unavailable") end
