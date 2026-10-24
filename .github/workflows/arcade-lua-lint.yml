@@ -1,0 +1,21 @@
+name: BLACKSITE Arcade Lua syntax
+on:
+  push:
+    paths:
+      - "arcade/**"
+      - ".github/workflows/arcade-lua-lint.yml"
+  pull_request:
+    paths:
+      - "arcade/**"
+  workflow_dispatch:
+jobs:
+  lua-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua 5.2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.2
+      - name: Check arcade syntax
+        run: luac5.2 -p arcade/arcade.lua
