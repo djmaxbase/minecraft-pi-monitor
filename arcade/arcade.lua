@@ -22,7 +22,7 @@ if not data.oldScoresImported and fs.exists(oldScores) then
  end end
  data.oldScoresImported=true
 end
-if mon then mon.setTextScale(data.scale);term.redirect(mon) end
+if mon then data.scale=0.5;mon.setTextScale(0.5);term.redirect(mon) end
 local W,H=term.getSize()
 if not term.isColor() then term.redirect(native);print("Advanced Computer/Monitor required");return end
 math.randomseed(os.epoch("utc")%2147483647)
@@ -56,7 +56,7 @@ local function write(x,y,s,fg,bg)
  if x>W or #s==0 then return end
  s=s:sub(1,W-x+1)
  term.setTextColor(fg or C.white)
- if bg then term.setBackgroundColor(bg) end
+ term.setBackgroundColor(bg or C.black)
  term.setCursorPos(x,y);term.write(s)
 end
 local function center(y,s,fg,bg) write(math.floor((W-#tostring(s))/2)+1,y,s,fg,bg) end
@@ -1044,7 +1044,7 @@ local function recordsScreen()
   end
  end
 end
-local settingNames={"THEME","DIFFICULTY","MONITOR SCALE","CONTROLLER REPEAT","SOUND","RESET RECORDS","BACK"}
+local settingNames={"THEME","DIFFICULTY","6x3 MONITOR","CONTROLLER REPEAT","SOUND","RESET RECORDS","BACK"}
 local function settingsScreen()
  local choice=1
  while true do
@@ -1052,7 +1052,7 @@ local function settingsScreen()
   local values={
    ({"NEON PURPLE","OCEAN BLUE","TOXIC GREEN"})[data.theme],
    ({"CASUAL","CLASSIC","HARDCORE"})[data.difficulty],
-   tostring(data.scale),
+   "FULL SCREEN / 0.5",
    string.format("%.2fs",data.repeatDelay),
    data.sound and "ON" or "OFF",
    "HOLD SPACE TO CONFIRM",
@@ -1077,10 +1077,7 @@ local function settingsScreen()
     if choice==1 then data.theme=(data.theme-1+dir)%3+1;T=themes[data.theme]
     elseif choice==2 then data.difficulty=(data.difficulty-1+dir)%3+1
     elseif choice==3 then
-     local scales={0.5,1,1.5}
-     local idx=1;for i,v in ipairs(scales) do if v==data.scale then idx=i end end
-     data.scale=scales[(idx-1+dir)%#scales+1]
-     if mon then mon.setTextScale(data.scale);W,H=term.getSize() end
+     -- Full 6x3 monitor resolution is deliberately fixed to 0.5.
     elseif choice==4 then data.repeatDelay=math.max(0.05,math.min(0.3,math.floor((data.repeatDelay+dir*0.025)*1000+0.5)/1000))
     elseif choice==5 then data.sound=not data.sound
     elseif choice==6 and k==keys.space then
