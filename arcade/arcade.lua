@@ -1,4 +1,4 @@
--- BLACKSITE ARCADE 1.0 - CC:Tweaked Advanced Computer
+-- BLACKSITE ARCADE 2.0 - Create Controller Edition
 local native=term.current()
 local monitor=peripheral.find("monitor")
 if monitor then
@@ -9,7 +9,9 @@ else
 end
 local W,H=term.getSize()
 if not term.isColor() then term.redirect(native);print("Color display required");return end
+math.randomseed(os.epoch("utc") % 2147483647)
 local C=colors
+local version="2.0"
 local scores={}
 local scoreFile="arcade_scores"
 if fs.exists(scoreFile) then local f=fs.open(scoreFile,"r");scores=textutils.unserialize(f.readAll()) or {};f.close() end
@@ -17,7 +19,7 @@ local function save() local f=fs.open(scoreFile,"w");f.write(textutils.serialize
 local function best(name,score) if score>(scores[name] or 0) then scores[name]=score;save() end end
 local function center(y,s,col) term.setTextColor(col or C.white);term.setCursorPos(math.max(1,math.floor((W-#s)/2)+1),y);term.write(s) end
 local function clear(bg) term.setBackgroundColor(bg or C.black);term.setTextColor(C.white);term.clear();term.setCursorPos(1,1) end
-local function bar(title) clear(C.black);term.setBackgroundColor(C.blue);term.setTextColor(C.white);term.setCursorPos(1,1);term.clearLine();center(1," BLACKSITE ARCADE | "..title);term.setBackgroundColor(C.black) end
+local function bar(title) clear(C.black);term.setBackgroundColor(C.purple);term.setTextColor(C.white);term.setCursorPos(1,1);term.clearLine();center(1," BLACKSITE ARCADE | "..title);term.setBackgroundColor(C.black) end
 local function footer(s) term.setBackgroundColor(C.gray);term.setTextColor(C.white);term.setCursorPos(1,H);term.clearLine();center(H,s);term.setBackgroundColor(C.black) end
 -- Create Linked Controller: left=left, right=top, up=bottom, down=back
 local controller={left=keys.left,top=keys.right,bottom=keys.up,back=keys.down}
@@ -74,6 +76,15 @@ local function pullControl()
 end
 local function waitKey()
  while true do local e,k=pullControl();if e=="key" then return k end end
+end
+local function pixel(x,y,color)
+ if x>=1 and x<=W and y>=2 and y<H then
+  term.setCursorPos(x,y);term.setBackgroundColor(color);term.write(" ")
+ end
+end
+local function frame(x,y,w,h,col)
+ for xx=x,x+w-1 do pixel(xx,y,col);pixel(xx,y+h-1,col) end
+ for yy=y,y+h-1 do pixel(x,yy,col);pixel(x+w-1,yy,col) end
 end
 local function gameOver(name,score) best(name,score);bar("GAME OVER");center(math.floor(H/2)-2,name,C.orange);center(math.floor(H/2),"SCORE "..score,C.lime);center(math.floor(H/2)+2,"BEST "..(scores[name] or 0),C.yellow);footer("ENTER = MENU");while true do local k=waitKey();if k==keys.enter or k==keys.right or k==keys.left or k==keys.up or k==keys.down then break end end end
 local function snake()
@@ -171,15 +182,171 @@ local function blocks()
  end
  gameOver("BLOCKS",score)
 end
-local games={{"SNAKE","Classic survival",snake},{"PONG","Beat the CPU",pong},{"BLOCK DROP","Falling block puzzle",blocks}}
+
+local function breakout()
+ local left,right,top,bottom=4,W-3,4,H-4
+ local paddleX=math.floor(W/2)
+ local ballX,ballY=math.floor(W/2),bottom-3
+ local vx,vy=1,-1
+ local score,lives=0,3
+ local bricks={}
+ local cols={C.red,C.orange,C.yellow,C.lime}
+ for y=top,top+3 do
+  bricks[y]={}
+  for x=left+1,right-1 do bricks[y][x]=cols[y-top+1] end
+ end
+ local function resetBall()
+  ballX,ballY=paddleX,bottom-3;vx=math.random(2)==1 and 1 or -1;vy=-1
+ end
+ local timer=os.startTimer(0.085)
+ while lives>0 do
+  bar("BREAKOUT")
+  center(2,"SCORE "..score.."  LIVES "..lives.."  BEST "..(scores.BREAKOUT or 0),C.cyan)
+  frame(left-1,top-1,right-left+3,bottom-top+3,C.blue)
+  for y,row in pairs(bricks) do for x,col in pairs(row) do pixel(x,y,col) end end
+  for x=paddleX-3,paddleX+3 do pixel(x,bottom,C.lime) end
+  pixel(ballX,ballY,C.white)
+  footer("LEFT / RIGHT MOVE   Q EXIT")
+  local e,k=pullControl()
+  if e=="key" then
+   if k==keys.q then best("BREAKOUT",score);return
+   elseif k==keys.left or k==keys.a then paddleX=math.max(left+4,paddleX-2)
+   elseif k==keys.right or k==keys.d then paddleX=math.min(right-4,paddleX+2) end
+  elseif e=="timer" and k==timer then
+   local nx,ny=ballX+vx,ballY+vy
+   if nx<=left or nx>=right then vx=-vx;nx=ballX+vx end
+   if ny<=top-1 then vy=1;ny=ballY+vy end
+   if bricks[ny] and bricks[ny][nx] then
+    bricks[ny][nx]=nil;score=score+10;vy=-vy;ny=ballY+vy
+   end
+   if ny>=bottom then
+    if math.abs(nx-paddleX)<=3 then
+     vy=-1;ny=bottom-1
+     if nx<paddleX then vx=-1 elseif nx>paddleX then vx=1 end
+    else
+     lives=lives-1;resetBall();nx,ny=ballX,ballY
+    end
+   end
+   ballX,ballY=nx,ny
+   local remaining=false
+   for _,row in pairs(bricks) do if next(row) then remaining=true;break end end
+   if not remaining then
+    best("BREAKOUT",score)
+    bar("YOU WIN");center(math.floor(H/2),"ALL BRICKS CLEARED!",C.lime)
+    sleep(1.5);break
+   end
+   timer=os.startTimer(math.max(0.04,0.085-score/10000))
+  end
+ end
+ gameOver("BREAKOUT",score)
+end
+local function dodge()
+ local lane=math.floor(W/2)
+ local score=0
+ local hazards={}
+ local tick=0
+ local timer=os.startTimer(0.12)
+ while true do
+  bar("METEOR DODGE")
+  center(2,"SURVIVED "..score.."  BEST "..(scores.DODGE or 0),C.cyan)
+  frame(3,3,W-5,H-5,C.blue)
+  for _,h in ipairs(hazards) do pixel(h.x,h.y,C.red) end
+  pixel(lane,H-4,C.lime)
+  footer("LEFT / RIGHT DODGE   Q EXIT")
+  local e,k=pullControl()
+  if e=="key" then
+   if k==keys.q then best("DODGE",score);return
+   elseif k==keys.left or k==keys.a then lane=math.max(5,lane-2)
+   elseif k==keys.right or k==keys.d then lane=math.min(W-4,lane+2) end
+  elseif e=="timer" and k==timer then
+   tick=tick+1
+   if tick%math.max(2,6-math.floor(score/120))==0 then
+    hazards[#hazards+1]={x=math.random(5,W-4),y=4}
+   end
+   for i=#hazards,1,-1 do
+    local h=hazards[i];h.y=h.y+1
+    if h.y==H-4 and math.abs(h.x-lane)<=1 then gameOver("DODGE",score);return end
+    if h.y>=H-3 then table.remove(hazards,i);score=score+5 end
+   end
+   timer=os.startTimer(math.max(0.045,0.12-score/4000))
+  end
+ end
+end
+local function reaction()
+ local rounds=5
+ local total=0
+ for n=1,rounds do
+  bar("REACTION TEST")
+  center(math.floor(H/2)-2,"ROUND "..n.." / "..rounds,C.cyan)
+  center(math.floor(H/2),"WAIT FOR GREEN",C.red)
+  footer("PRESS ANY DIRECTION WHEN GREEN")
+  local t=os.startTimer(1+math.random()*2.5)
+  local early=false
+  while true do
+   local e,k=pullControl()
+   if e=="key" then early=true;break end
+   if e=="timer" and k==t then break end
+  end
+  if early then
+   center(math.floor(H/2)+2,"TOO EARLY!",C.orange);sleep(0.8)
+  else
+   bar("REACTION TEST")
+   center(math.floor(H/2),"PRESS NOW!",C.lime)
+   local start=os.epoch("utc")
+   while true do
+    local e=pullControl()
+    if e=="key" then break end
+   end
+   local ms=os.epoch("utc")-start
+   total=total+math.max(0,1000-ms)
+   center(math.floor(H/2)+2,tostring(ms).." ms",C.yellow)
+   sleep(0.65)
+  end
+ end
+ gameOver("REACTION",total)
+end
+local games={
+ {"SNAKE","Grow, eat and survive",snake},
+ {"PONG","Defeat the arcade AI",pong},
+ {"BLOCK DROP","Stack and clear lines",blocks},
+ {"BREAKOUT","Smash the neon bricks",breakout},
+ {"METEOR DODGE","Avoid incoming hazards",dodge},
+ {"REACTION","Test your reflexes",reaction}
+}
 local selected=1
+local page=1
+local perPage=math.max(2,math.floor((H-12)/3))
+local function menu()
+ bar("GAME LIBRARY")
+ center(3,"B L A C K S I T E",C.cyan)
+ center(4,"A R C A D E   O S   v"..version,C.lime)
+ center(6,"CREATE LINKED CONTROLLER CONNECTED",C.yellow)
+ page=math.floor((selected-1)/perPage)+1
+ local first=(page-1)*perPage+1
+ for i=first,math.min(#games,first+perPage-1) do
+  local g=games[i]
+  local yy=8+(i-first)*3
+  if yy+1<H then
+   term.setBackgroundColor(i==selected and C.purple or C.gray)
+   term.setTextColor(C.white);term.setCursorPos(4,yy)
+   term.write(string.rep(" ",W-7))
+   term.setCursorPos(5,yy);term.write((i==selected and "> " or "  ")..g[1])
+   term.setBackgroundColor(C.black);term.setTextColor(C.lightGray)
+   term.setCursorPos(6,yy+1)
+   local name=g[1]=="BLOCK DROP" and "BLOCKS" or g[1]=="METEOR DODGE" and "DODGE" or g[1]=="REACTION" and "REACTION" or g[1]
+   term.write(g[2].."  |  RECORD "..(scores[name] or 0))
+  end
+ end
+ center(H-2,"PAGE "..page.." / "..math.ceil(#games/perPage),C.lightBlue)
+ footer("UP/DOWN BROWSE  RIGHT PLAY  Q EXIT")
+end
 while true do
- bar("HOME");center(3,"B L A C K S I T E",C.cyan);center(4,"A R C A D E   O S",C.lime)
- for i,g in ipairs(games) do local yy=6+i*3;if yy<H-1 then term.setBackgroundColor(i==selected and C.blue or C.gray);term.setTextColor(C.white);term.setCursorPos(4,yy);term.write(string.rep(" ",W-7));term.setCursorPos(5,yy);term.write((i==selected and "> " or "  ")..g[1]);term.setBackgroundColor(C.black);term.setTextColor(C.lightGray);term.setCursorPos(6,yy+1);term.write(g[2].."  |  BEST "..(scores[g[1]=="BLOCK DROP" and "BLOCKS" or g[1]] or 0)) end end
- footer("CONTROLLER UP/DOWN SELECT  RIGHT PLAY")
+ menu()
  local k=waitKey()
  if k==keys.up then selected=selected==1 and #games or selected-1
  elseif k==keys.down then selected=selected==#games and 1 or selected+1
- elseif k==keys.enter or k==keys.right then local ok,err=pcall(games[selected][3]);if not ok then bar("ERROR");center(5,tostring(err):sub(1,W-2),C.red);sleep(3) end
+ elseif k==keys.enter or k==keys.right then
+  local ok,err=pcall(games[selected][3])
+  if not ok then bar("ERROR");center(5,tostring(err):sub(1,W-2),C.red);sleep(3) end
  elseif k==keys.q then clear();term.redirect(native);print("BLACKSITE Arcade shutdown");return end
 end
