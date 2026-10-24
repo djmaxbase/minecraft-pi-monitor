@@ -75,7 +75,7 @@ local function pong()
  gameOver("PONG",score)
 end
 local function blocks()
- local bw,bh=10,math.min(16,H-6);local x0=math.floor((W-bw*2)/2)+1,y0=3
+ local bw,bh=10,math.min(16,H-6);local x0,y0=math.floor((W-bw*2)/2)+1,3
  local board={};for y=1,bh do board[y]={} end
  local shapes={{{0,0},{1,0},{0,1},{1,1}},{{0,0},{1,0},{2,0},{3,0}},{{0,0},{1,0},{2,0},{1,1}},{{0,0},{1,0},{1,1},{2,1}},{{1,0},{2,0},{0,1},{1,1}},{{0,0},{0,1},{1,1},{2,1}},{{2,0},{0,1},{1,1},{2,1}}}
  local palette={C.yellow,C.cyan,C.purple,C.red,C.lime,C.blue,C.orange}
