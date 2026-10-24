@@ -19,7 +19,7 @@ local function snake()
  local snake={{x=math.floor(gw/2),y=math.floor(gh/2)}}
  local dx,dy=1,0;local food={x=2,y=2};local score=0;local alive=true
  local function spawn()
-  for _=1,150 do local x=math.random(1,gw),y=math.random(1,gh);local ok=true
+  for _=1,150 do local x,y=math.random(1,gw),math.random(1,gh);local ok=true
    for _,p in ipairs(snake) do if p.x==x and p.y==y then ok=false;break end end
    if ok then food={x=x,y=y};return end
   end
