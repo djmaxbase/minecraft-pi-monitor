@@ -1,6 +1,14 @@
 -- BLACKSITE ARCADE 1.0 - CC:Tweaked Advanced Computer
+local native=term.current()
+local monitor=peripheral.find("monitor")
+if monitor then
+ monitor.setTextScale(0.5)
+ term.redirect(monitor)
+else
+ print("No monitor detected: using computer screen")
+end
 local W,H=term.getSize()
-if not term.isColor() then print("Advanced Computer required") return end
+if not term.isColor() then term.redirect(native);print("Color display required");return end
 local C=colors
 local scores={}
 local scoreFile="arcade_scores"
@@ -14,7 +22,7 @@ local function footer(s) term.setBackgroundColor(C.gray);term.setTextColor(C.whi
 local function waitKey() while true do local e,k=os.pullEvent();if e=="key" then return k end end end
 local function gameOver(name,score) best(name,score);bar("GAME OVER");center(math.floor(H/2)-2,name,C.orange);center(math.floor(H/2),"SCORE "..score,C.lime);center(math.floor(H/2)+2,"BEST "..(scores[name] or 0),C.yellow);footer("ENTER = MENU");while waitKey()~=keys.enter do end end
 local function snake()
- local gw,gh=math.min(W-4,34),math.min(H-7,14)
+ local gw,gh=math.min(W-4,math.max(24,W-8)),math.min(H-7,math.max(14,H-8))
  local x0,y0=math.floor((W-gw)/2)+1,3
  local snake={{x=math.floor(gw/2),y=math.floor(gh/2)}}
  local dx,dy=1,0;local food={x=2,y=2};local score=0;local alive=true
@@ -75,7 +83,7 @@ local function pong()
  gameOver("PONG",score)
 end
 local function blocks()
- local bw,bh=10,math.min(16,H-6);local x0,y0=math.floor((W-bw*2)/2)+1,3
+ local bw,bh=10,math.min(20,H-6);local x0,y0=math.floor((W-bw*2)/2)+1,3
  local board={};for y=1,bh do board[y]={} end
  local shapes={{{0,0},{1,0},{0,1},{1,1}},{{0,0},{1,0},{2,0},{3,0}},{{0,0},{1,0},{2,0},{1,1}},{{0,0},{1,0},{1,1},{2,1}},{{1,0},{2,0},{0,1},{1,1}},{{0,0},{0,1},{1,1},{2,1}},{{2,0},{0,1},{1,1},{2,1}}}
  local palette={C.yellow,C.cyan,C.purple,C.red,C.lime,C.blue,C.orange}
@@ -118,5 +126,5 @@ while true do
  if k==keys.up then selected=selected==1 and #games or selected-1
  elseif k==keys.down then selected=selected==#games and 1 or selected+1
  elseif k==keys.enter then local ok,err=pcall(games[selected][3]);if not ok then bar("ERROR");center(5,tostring(err):sub(1,W-2),C.red);sleep(3) end
- elseif k==keys.q then clear();print("BLACKSITE Arcade shutdown");return end
+ elseif k==keys.q then clear();term.redirect(native);print("BLACKSITE Arcade shutdown");return end
 end
