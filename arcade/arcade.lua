@@ -21,20 +21,55 @@ local function bar(title) clear(C.black);term.setBackgroundColor(C.blue);term.se
 local function footer(s) term.setBackgroundColor(C.gray);term.setTextColor(C.white);term.setCursorPos(1,H);term.clearLine();center(H,s);term.setBackgroundColor(C.black) end
 -- Create Linked Controller: left=left, right=top, up=bottom, down=back
 local controller={left=keys.left,top=keys.right,bottom=keys.up,back=keys.down}
+local sides={"left","top","bottom","back"}
 local held={}
-for side in pairs(controller) do held[side]=redstone.getInput(side) end
+local repeatAt={}
+local repeatTimer=nil
+local initialDelay=0.32
+local repeatDelay=0.105
+for _,side in ipairs(sides) do held[side]=redstone.getInput(side) end
+local function scheduleRepeat()
+ local soonest=nil
+ local now=os.clock()
+ for _,side in ipairs(sides) do
+  if held[side] and repeatAt[side] then
+   local remaining=math.max(0.01,repeatAt[side]-now)
+   if not soonest or remaining<soonest then soonest=remaining end
+  end
+ end
+ repeatTimer=soonest and os.startTimer(soonest) or nil
+end
 local function pullControl()
  while true do
   local e,a=os.pullEvent()
   if e=="redstone" then
    local pressed=nil
-   for _,side in ipairs({"left","top","bottom","back"}) do
+   for _,side in ipairs(sides) do
     local now=redstone.getInput(side)
-    if now and not held[side] and not pressed then pressed=controller[side] end
+    if now and not held[side] then
+     repeatAt[side]=os.clock()+initialDelay
+     if not pressed then pressed=controller[side] end
+    elseif not now then
+     repeatAt[side]=nil
+    end
     held[side]=now
    end
+   scheduleRepeat()
    if pressed then return "key",pressed end
-  elseif e=="key" or e=="timer" or e=="monitor_touch" then return e,a end
+  elseif e=="timer" and a==repeatTimer then
+   local now=os.clock()
+   local pressed=nil
+   for _,side in ipairs(sides) do
+    if held[side] and repeatAt[side] and now>=repeatAt[side]-0.015 then
+     repeatAt[side]=now+repeatDelay
+     if not pressed then pressed=controller[side] end
+    end
+   end
+   scheduleRepeat()
+   if pressed then return "key",pressed end
+  elseif e=="key" or e=="timer" or e=="monitor_touch" then
+   return e,a
+  end
  end
 end
 local function waitKey()
