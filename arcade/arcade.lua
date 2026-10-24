@@ -19,8 +19,28 @@ local function center(y,s,col) term.setTextColor(col or C.white);term.setCursorP
 local function clear(bg) term.setBackgroundColor(bg or C.black);term.setTextColor(C.white);term.clear();term.setCursorPos(1,1) end
 local function bar(title) clear(C.black);term.setBackgroundColor(C.blue);term.setTextColor(C.white);term.setCursorPos(1,1);term.clearLine();center(1," BLACKSITE ARCADE | "..title);term.setBackgroundColor(C.black) end
 local function footer(s) term.setBackgroundColor(C.gray);term.setTextColor(C.white);term.setCursorPos(1,H);term.clearLine();center(H,s);term.setBackgroundColor(C.black) end
-local function waitKey() while true do local e,k=os.pullEvent();if e=="key" then return k end end end
-local function gameOver(name,score) best(name,score);bar("GAME OVER");center(math.floor(H/2)-2,name,C.orange);center(math.floor(H/2),"SCORE "..score,C.lime);center(math.floor(H/2)+2,"BEST "..(scores[name] or 0),C.yellow);footer("ENTER = MENU");while waitKey()~=keys.enter do end end
+-- Create Linked Controller: left=left, right=top, up=bottom, down=back
+local controller={left=keys.left,top=keys.right,bottom=keys.up,back=keys.down}
+local held={}
+for side in pairs(controller) do held[side]=redstone.getInput(side) end
+local function pullControl()
+ while true do
+  local e,a=os.pullEvent()
+  if e=="redstone" then
+   local pressed=nil
+   for _,side in ipairs({"left","top","bottom","back"}) do
+    local now=redstone.getInput(side)
+    if now and not held[side] and not pressed then pressed=controller[side] end
+    held[side]=now
+   end
+   if pressed then return "key",pressed end
+  elseif e=="key" or e=="timer" or e=="monitor_touch" then return e,a end
+ end
+end
+local function waitKey()
+ while true do local e,k=pullControl();if e=="key" then return k end end
+end
+local function gameOver(name,score) best(name,score);bar("GAME OVER");center(math.floor(H/2)-2,name,C.orange);center(math.floor(H/2),"SCORE "..score,C.lime);center(math.floor(H/2)+2,"BEST "..(scores[name] or 0),C.yellow);footer("ENTER = MENU");while true do local k=waitKey();if k==keys.enter or k==keys.right or k==keys.left or k==keys.up or k==keys.down then break end end end
 local function snake()
  local gw,gh=math.min(W-4,math.max(24,W-8)),math.min(H-7,math.max(14,H-8))
  local x0,y0=math.floor((W-gw)/2)+1,3
@@ -40,7 +60,7 @@ local function snake()
   term.setBackgroundColor(C.red);term.setCursorPos(x0+food.x-1,y0+food.y-1);term.write(" ")
   for i,p in ipairs(snake) do term.setBackgroundColor(i==1 and C.lime or C.green);term.setCursorPos(x0+p.x-1,y0+p.y-1);term.write(" ") end
   term.setBackgroundColor(C.black);footer("ARROWS / WASD   Q = EXIT")
-  local e,a=os.pullEvent()
+  local e,a=pullControl()
   if e=="key" then
    if a==keys.q then return end
    if (a==keys.up or a==keys.w) and dy~=1 then dx,dy=0,-1
@@ -69,7 +89,7 @@ local function pong()
   for d=-1,1 do for _,p in ipairs({{1,py,C.lime},{gw,ai,C.red}}) do local y=p[2]+d;if y>=1 and y<=gh then term.setCursorPos(x0+p[1]-1,y0+y-1);term.setBackgroundColor(p[3]);term.write(" ") end end end
   term.setCursorPos(x0+bx-1,y0+by-1);term.setBackgroundColor(C.white);term.write(" ");term.setBackgroundColor(C.black)
   footer("UP / DOWN or W / S   Q = EXIT")
-  local e,k=os.pullEvent()
+  local e,k=pullControl()
   if e=="key" then if k==keys.q then best("PONG",score);return elseif k==keys.up or k==keys.w then py=math.max(2,py-2) elseif k==keys.down or k==keys.s then py=math.min(gh-1,py+2) end
   elseif e=="timer" and k==timer then
    bx=bx+vx;by=by+vy
@@ -105,7 +125,7 @@ local function blocks()
   for yy=1,bh do for xx=1,bw do term.setCursorPos(x0+(xx-1)*2,y0+yy-1);term.setBackgroundColor(board[yy][xx] or C.gray);term.write("  ") end end
   for _,p in ipairs(piece) do local xx,yy=x+p[1],y+p[2];if yy>=1 and yy<=bh then term.setCursorPos(x0+(xx-1)*2,y0+yy-1);term.setBackgroundColor(palette[kind]);term.write("  ") end end
   term.setBackgroundColor(C.black);footer("LEFT/RIGHT MOVE  UP ROTATE  DOWN DROP  Q EXIT")
-  local e,k=os.pullEvent()
+  local e,k=pullControl()
   if e=="key" then
    if k==keys.q then best("BLOCKS",score);return
    elseif (k==keys.left or k==keys.a) and fits(piece,x-1,y) then x=x-1
@@ -121,10 +141,10 @@ local selected=1
 while true do
  bar("HOME");center(3,"B L A C K S I T E",C.cyan);center(4,"A R C A D E   O S",C.lime)
  for i,g in ipairs(games) do local yy=6+i*3;if yy<H-1 then term.setBackgroundColor(i==selected and C.blue or C.gray);term.setTextColor(C.white);term.setCursorPos(4,yy);term.write(string.rep(" ",W-7));term.setCursorPos(5,yy);term.write((i==selected and "> " or "  ")..g[1]);term.setBackgroundColor(C.black);term.setTextColor(C.lightGray);term.setCursorPos(6,yy+1);term.write(g[2].."  |  BEST "..(scores[g[1]=="BLOCK DROP" and "BLOCKS" or g[1]] or 0)) end end
- footer("UP/DOWN SELECT  ENTER PLAY  Q SHUT DOWN")
+ footer("CONTROLLER UP/DOWN SELECT  RIGHT PLAY")
  local k=waitKey()
  if k==keys.up then selected=selected==1 and #games or selected-1
  elseif k==keys.down then selected=selected==#games and 1 or selected+1
- elseif k==keys.enter then local ok,err=pcall(games[selected][3]);if not ok then bar("ERROR");center(5,tostring(err):sub(1,W-2),C.red);sleep(3) end
+ elseif k==keys.enter or k==keys.right then local ok,err=pcall(games[selected][3]);if not ok then bar("ERROR");center(5,tostring(err):sub(1,W-2),C.red);sleep(3) end
  elseif k==keys.q then clear();term.redirect(native);print("BLACKSITE Arcade shutdown");return end
 end
