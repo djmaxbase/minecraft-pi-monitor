@@ -8,18 +8,19 @@ local dataFile="blacksite_arcade_save"
 local oldScores="arcade_scores"
 local C=colors
 local version="3.0"
-local defaults={theme=1,scale=0.5,difficulty=2,sound=true,repeatDelay=0.105,records={},played={},selected=1}
+local defaults={theme=1,scale=0.5,difficulty=2,sound=true,repeatDelay=0.105,records={},played={},selected=1,oldScoresImported=false}
 local data={}
 for k,v in pairs(defaults) do data[k]=type(v)=="table" and {} or v end
 if fs.exists(dataFile) then
  local f=fs.open(dataFile,"r")
  if f then local ok,d=pcall(textutils.unserialize,f.readAll());f.close();if ok and type(d)=="table" then for k,v in pairs(defaults) do if type(d[k])==type(v) then data[k]=d[k] end end end end
 end
-if fs.exists(oldScores) then
+if not data.oldScoresImported and fs.exists(oldScores) then
  local f=fs.open(oldScores,"r")
  if f then local ok,d=pcall(textutils.unserialize,f.readAll());f.close();if ok and type(d)=="table" then
   for k,v in pairs(d) do if type(v)=="number" and v>(data.records[k] or 0) then data.records[k]=v end end
  end end
+ data.oldScoresImported=true
 end
 if mon then mon.setTextScale(data.scale);term.redirect(mon) end
 local W,H=term.getSize()
@@ -335,12 +336,14 @@ local function blockDown(s)
  for _,p in ipairs(s.piece) do
   local x,y=s.px+p[1],s.py+p[2];if y>=1 and y<=s.h then s.board[y][x]=blockColors[s.kind] end
  end
- for y=s.h,1,-1 do
+ local row=s.h
+ while row>=1 do
   local full=true
-  for x=1,10 do if not s.board[y][x] then full=false;break end end
-  if full then table.remove(s.board,y);table.insert(s.board,1,{})
-   s.score=s.score+100;beep(1.65);y=y+1
-  end
+  for x=1,10 do if not s.board[row][x] then full=false;break end end
+  if full then
+   table.remove(s.board,row);table.insert(s.board,1,{})
+   s.score=s.score+100;beep(1.65)
+  else row=row-1 end
  end
  newBlock(s)
  if not blockFits(s,s.px,s.py) then endState(s) end
@@ -691,7 +694,7 @@ add("MINES","MINEFIELD","PUZZLE","[*]","AVOID THE MINES",
     local count=0
     while count<10 do
      local a,b=rnd(8),rnd(8);local key2=b..":"..a
-     if not s.mines[key2] and math.abs(a-x)>1 or not s.mines[key2] and math.abs(b-y)>1 then
+     if not s.mines[key2] and (math.abs(a-x)>1 or math.abs(b-y)>1) then
       s.mines[key2]=true;count=count+1
      end
     end
@@ -737,7 +740,7 @@ add("LIGHTS","LIGHTS OUT","PUZZLE","O*O","TURN OFF THE GRID",
    end
    s.steps=s.steps+1;s.score=math.max(0,500-s.steps*10)
    local on=false
-   for _,v in ipairs(s.grid) do if v then on=true end end
+   for _,v in ipairs(s.grid) do if v then on=true;break end end
    if not on then endState(s,true) end
   end
  end)
@@ -929,6 +932,16 @@ add("CONNECT4","CONNECT FOUR","PARTY","OOOO","BEAT THE ROBOT",
    for i=1,7 do if s.board[1][i]==0 then possible[#possible+1]=i end end
    if #possible==0 then return endState(s,true) end
    local ai=possible[rnd(#possible)]
+   for _,col in ipairs(possible) do
+    local copy={}
+    for yy=1,6 do copy[yy]={};for xx=1,7 do copy[yy][xx]=s.board[yy][xx] end end
+    local probe={board=copy}
+    c4Drop(probe,col,2)
+    if c4Winner(copy)==2 then ai=col;break end
+    for yy=1,6 do for xx=1,7 do copy[yy][xx]=s.board[yy][xx] end end
+    c4Drop(probe,col,1)
+    if c4Winner(copy)==1 then ai=col end
+   end
    c4Drop(s,ai,2);s.moves=s.moves+1
    if c4Winner(s.board)==2 then return endState(s) end
    s.score=s.score+10
